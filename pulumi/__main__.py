@@ -5,6 +5,7 @@ from infra.vpc import create_vpc
 from infra.iam import create_eks_roles
 from infra.eks import create_eks
 from infra.ecr import create_ecr_repository
+from infra.alb_controller import create_alb_controller
 
 config = pulumi.Config()
 proj_name = config.get("name")
@@ -57,6 +58,47 @@ eks_resources = create_eks(
 
 cluster = eks_resources["cluster"]
 
+# Generate kubeconfig
+# At the moment, this is the only way to get the kubeconfig for the cluster
+# This is because the cluster.kubeconfig attribute is not available in the newer provider versions
+kubeconfig = pulumi.Output.all(cluster.endpoint, cluster.certificate_authority, cluster.name).apply(
+    lambda args: f"""apiVersion: v1
+clusters:
+- cluster:
+    certificate-authority-data: {args[1]['data']}
+    server: {args[0]}
+  name: {args[2]}
+contexts:
+- context:
+    cluster: {args[2]}
+    user: {args[2]}
+  name: {args[2]}
+current-context: {args[2]}
+kind: Config
+preferences: {{}}
+users:
+- name: {args[2]}
+  user:
+    exec:
+      apiVersion: client.authentication.k8s.io/v1beta1
+      command: aws
+      args:
+      - eks
+      - get-token
+      - --cluster-name
+      - {args[2]}
+"""
+)
+
+# AWS Load Balancer Controller
+alb_controller_resources = create_alb_controller(
+    name=proj_name,
+    cluster=cluster,
+    kubeconfig=kubeconfig,
+    vpc_id=net["vpc"].id,
+    base_tags=base_tags,
+)
+
 # ECR Repository
 ecr_resources = create_ecr_repository(proj_name, base_tags)
 
@@ -66,10 +108,13 @@ ecr_resources = create_ecr_repository(proj_name, base_tags)
 pulumi.export("region", region)
 pulumi.export("clusterName", cluster.name)
 pulumi.export("clusterEndpoint", cluster.endpoint)
+pulumi.export("kubeconfig", kubeconfig)
 pulumi.export("vpcId", net["vpc"].id)
 pulumi.export("ecrRepositoryUrl", ecr_resources["repository"].repository_url)
 pulumi.export("publicSubnetIds", [s.id for s in net["public_subnets"]])
 pulumi.export("privateSubnetIds", [s.id for s in net["private_subnets"]])
+pulumi.export("oidcProviderArn", alb_controller_resources["oidc_provider"].arn)
+pulumi.export("albControllerRoleArn", alb_controller_resources["role"].arn)
 
 # To configure kubectl, run:
 # aws eks update-kubeconfig --region <region> --name <cluster-name>

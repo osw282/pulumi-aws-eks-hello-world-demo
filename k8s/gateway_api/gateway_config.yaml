@@ -1,0 +1,35 @@
+kind: GatewayConfiguration
+apiVersion: gateway-operator.konghq.com/v1beta1
+metadata:
+  name: kong
+  namespace: kong
+spec:
+  dataPlaneOptions:
+    deployment:
+      podTemplateSpec:
+        spec:
+          containers:
+          - name: proxy
+            image: kong:3.9.1
+    network:
+      services:
+        ingress:
+          type: LoadBalancer # Default is LoadBalancer anyway, but just to be explicit
+          annotations:
+            service.beta.kubernetes.io/aws-load-balancer-type: alb
+            service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
+            service.beta.kubernetes.io/aws-load-balancer-target-type: instance # Instance is alb, ip is nlb
+            service.beta.kubernetes.io/aws-load-balancer-healthcheck-path: /status
+            service.beta.kubernetes.io/aws-load-balancer-healthcheck-port: "8100"
+            service.beta.kubernetes.io/aws-load-balancer-healthcheck-protocol: HTTP
+            service.beta.kubernetes.io/aws-load-balancer-success-codes: "200,404"
+  controlPlaneOptions:
+    deployment:
+      podTemplateSpec:
+        spec:
+          containers:
+          - name: controller
+            image: kong/kubernetes-ingress-controller:3.5
+            env:
+            - name: CONTROLLER_LOG_LEVEL
+              value: debug

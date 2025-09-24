@@ -14,4 +14,4 @@ config:
   hello-world-pulumi:desiredSize: "2"
   hello-world-pulumi:minSize: "2"
   hello-world-pulumi:maxSize: "4"
-  aws:profile: 043509840788_AdministratorAccess
+  aws:profile: 043509840788_AdministratorAccess # Change this to your own profile
