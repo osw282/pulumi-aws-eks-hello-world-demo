@@ -1,0 +1,17 @@
+config:
+  aws:region: eu-west-2
+  hello-world-pulumi:name: my-eks-cluster
+  hello-world-pulumi:eksVersion: "1.33"
+  hello-world-pulumi:vpcCidr: "10.0.0.0/16"
+  hello-world-pulumi:publicSubnetCidrs:
+    - "10.0.1.0/24"
+    - "10.0.2.0/24"
+  hello-world-pulumi:privateSubnetCidrs:
+    - "10.0.3.0/24"
+    - "10.0.4.0/24"
+  hello-world-pulumi:instanceTypes:
+    - "t3.medium"
+  hello-world-pulumi:desiredSize: "2"
+  hello-world-pulumi:minSize: "2"
+  hello-world-pulumi:maxSize: "4"
+  aws:profile: 043509840788_AdministratorAccess

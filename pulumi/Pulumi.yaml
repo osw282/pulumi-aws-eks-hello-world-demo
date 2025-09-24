@@ -1,0 +1,4 @@
+name: hello-world-pulumi
+runtime:
+  name: python
+description: EKS on AWS with VPC, public and private subnets, IGW, NAT, routes, IAM, and a managed node group
