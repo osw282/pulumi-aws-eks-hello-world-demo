@@ -22,6 +22,7 @@ def create_ecr_repository(
         f"{name}-ecr",
         name=f"{name}-hello-world",
         image_tag_mutability="MUTABLE",
+        force_delete=True,  # Allows deletion even with images present, set this based on your needs
         image_scanning_configuration=aws.ecr.RepositoryImageScanningConfigurationArgs(
             scan_on_push=True,
         ),
