@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# This script is copied and modified from
+# https://gist.github.com/riccardomc/a3891356b09516ab3f3b79a12e9b13e1
+# Thanks to riccardomc for the script
 set -e
 
 if [ ! -z "$DEBUG" ] ; then
