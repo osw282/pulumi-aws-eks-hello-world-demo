@@ -5,7 +5,7 @@ from infra.vpc import create_vpc
 from infra.iam import create_eks_roles
 from infra.eks import create_eks
 from infra.ecr import create_ecr_repository
-from infra.alb_controller import create_alb_controller
+from infra.alb_controller.alb_controller import create_alb_controller
 
 config = pulumi.Config()
 proj_name = config.get("name")
