@@ -1,11 +1,16 @@
+# pulumi-aws-eks-hello-world-demo
 
-pre-requsite
+A demo project showing how to provision an Amazon EKS cluster on AWS using Pulumi, with a VPC, subnets, IAM roles, and the AWS Load Balancer Controller. Includes a simple “Hello World” Kubernetes application exposed via Gateway API and Kong Gateway.
+
+This demo aim to give you a step by step hand holding guide that you can follow.
+
+What we will have at the end:
+
+
+# pre-requsite
 
 - Pulumi
 - uv
-
-SRC
-- Build and push to ecr
 
 
 # Project Setup
@@ -55,6 +60,11 @@ Standing the infra takes around 10-15 minutes.
 
 Once finished, you shuld see a an aws cluster named `my-eks-cluster-*` if you visit the aws dashboard.
 
+You might need to manually confgirue the kubeconfig for access to your cluster, to do so, run:
+```bash
+aws eks update-kubeconfig --region <region> --name <cluster-name> --profile <profile>
+```
+
 To quickly check you have access to the cluster locally, run
 
 `kubectl get pod` and you should expect the `No resources found in default namespace.` message since we have not deployed anything yet.
@@ -92,6 +102,8 @@ There should be a ecr named `my-eks-cluster-hello-world` provisioned which you c
 There is a [Dockerfile](Dockerfile) which you can use to build the hello world app image.
 
 To do it, we will need to autheticate docker to our ecr.
+
+Inside the pulumi folder,
 
 Run on your terminal, put in your region and profile name:
 ```bash
@@ -256,7 +268,7 @@ kubectl apply -f k8s/gateway_api/gateway.yaml
 kubectl apply -f k8s/gateway_api/reference_grant.yaml
 ```
 
-To check if kong's data and control plane is running:
+To check if kong's data and control plane is running, wait for them to be ready:
 
 ```bash
 kubectl get pods -n kong
@@ -274,4 +286,107 @@ kubectl get svc -n kong
 
 We can see there is a external ip associated with our kong load balancer service.
 
-We can also visit the load balancer 
+We can also visit the load balancer page on the aws dashboard.
+
+![load_balancer](imgs/load_balacner.png)
+
+Wait for it to provision and you should see the state to become "Active".
+
+Now, we should be able to reach our app with the external ip.
+
+## Create a HTTP route for our hello world app
+
+Now that we have kong all setup with gateway api.
+
+We can define a route for our hello world deplpyment
+
+From the project root, run:
+
+```bash
+kubectl apply -f k8s/hello_world/http_route.yaml
+```
+
+To check that it has successfull created
+
+```bash
+kubectl get httproute -n kong
+```
+
+We should see
+
+![http_route](imgs/http_route.png)
+
+Run the following command to give you the full url to reach our hello world app.
+
+```bash
+echo "http://$(kubectl get svc -n kong -o jsonpath='{.items[?(@.spec.type=="LoadBalancer")].status.loadBalancer.ingress[0].hostname}')/ui"
+```
+
+We did it..
+
+![success](imgs/great_success.png)
+
+We have a publicly reachable app.
+
+I really hope you find this demo useful, of course we just deployed a webapp that just says hello world which have no use in the real world.
+
+But the knowledge and set up is transferable to set up your complex machine learning system.
+
+# What's Next
+
+## HTTPS
+
+There are two ways we can set up https with kong.
+
+If you remeber, inside our [k8s/gateway_api/gateway_config.yaml](k8s/gateway_api/gateway_config.yaml), kong can only have either a NLB or a CLB, CLB is outdated and should not be used anymore, so we went with a internet facing NLB.
+
+But NLB is layer 4, support tcp but not http or https. So what do we do?
+
+### Let kong do the work, we keep NLB at the front
+
+Well you are right, but even if Kong is fronted by an NLB, you can still reach your services over HTTPS because:
+- the NLB is just **passing raw TCP** (port 443) to Kong.
+
+- Kong terminates the TLS connection itself using the certificate you configure.
+
+- From the browser’s perspective, it’s still a normal HTTPS endpoint (valid cert etc).
+
+So the flow will look like this:
+
+```bash
+Browser (HTTPS request on port 443)
+    ↓
+AWS NLB (forwards TCP:443, no TLS termination)
+    ↓
+Kong Gateway (terminates TLS using cert from K8s Secret)
+    ↓
+Backend Service
+```
+
+As long as Kong is configured with a valid cert (self-signed, Let’s Encrypt via cert-manager, or one you upload), your browser will connect via HTTPS with no issue.
+
+Which ever way you should to get a tls certificate is really your choice, but you will need a domain.
+
+### We put a ALB in front of kong
+
+If you put an ALB in front, then the ALB could terminate TLS itself (certs live in ACM) and Kong would just see plain HTTP.
+
+That means Kong doesn’t need to expose a public-facing LoadBalancer at all.
+
+With ALB:
+
+- The ALB is becomes the external entrypoint.
+- ALB terminates TLS and forwards plain HTTP to Kong.
+- Kong only needs to be reachable inside the cluster, so ClusterIP is enough.
+- Which you can set via annotation in [k8s/gateway_api/gateway_config.yaml](k8s/gateway_api/gateway_config.yaml)
+
+This is also a pretty common design in setups where teams want AWS-native TLS + WAF at the edge, while still keeping Kong as the API gateway inside.
+
+My recommendation is that you start simple, and add in the services as you required.
+
+# Clean Up
+
+To bring down our cluster, we can jsut run 
+```bash
+pulumi destroy
+```
