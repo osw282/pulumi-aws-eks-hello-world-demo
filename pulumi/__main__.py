@@ -1,5 +1,6 @@
 import pulumi
 import pulumi_aws as aws
+import pulumi_command as command
 
 from infra.vpc import create_vpc
 from infra.iam import create_eks_roles
@@ -58,7 +59,18 @@ eks_resources = create_eks(
 
 cluster = eks_resources["cluster"]
 
-# Generate kubeconfig
+# Automatically update kubeconfig when cluster is ready
+command.local.Command(
+    "update-kubeconfig",
+    create=pulumi.Output.concat(
+        "aws eks update-kubeconfig --region ", region, 
+        " --name ", cluster.name,
+        " --profile ", aws.config.profile or "default"
+    ),
+    opts=pulumi.ResourceOptions(depends_on=[cluster])
+)
+
+# Generate kubeconfig for Pulumi Kubernetes provider
 # At the moment, this is the only way to get the kubeconfig for the cluster
 # This is because the cluster.kubeconfig attribute is not available in the newer provider versions
 kubeconfig = pulumi.Output.all(cluster.endpoint, cluster.certificate_authority, cluster.name).apply(
@@ -87,6 +99,10 @@ users:
       - get-token
       - --cluster-name
       - {args[2]}
+      - --region
+      - {region}
+      - --profile
+      - {aws.config.profile or 'default'}
 """
 )
 
@@ -117,4 +133,4 @@ pulumi.export("oidcProviderArn", alb_controller_resources["oidc_provider"].arn)
 pulumi.export("albControllerRoleArn", alb_controller_resources["role"].arn)
 
 # To configure kubectl, run:
-# aws eks update-kubeconfig --region <region> --name <cluster-name>
+# aws eks update-kubeconfig --region <region> --name <cluster-name> --profile <profile>
