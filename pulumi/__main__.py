@@ -107,13 +107,13 @@ users:
 )
 
 # AWS Load Balancer Controller
-alb_controller_resources = create_alb_controller(
-    name=proj_name,
-    cluster=cluster,
-    kubeconfig=kubeconfig,
-    vpc_id=net["vpc"].id,
-    base_tags=base_tags,
-)
+# alb_controller_resources = create_alb_controller(
+#     name=proj_name,
+#     cluster=cluster,
+#     kubeconfig=kubeconfig,
+#     vpc_id=net["vpc"].id,
+#     base_tags=base_tags,
+# )
 
 # ECR Repository
 ecr_resources = create_ecr_repository(proj_name, base_tags)
@@ -129,8 +129,8 @@ pulumi.export("vpcId", net["vpc"].id)
 pulumi.export("ecrRepositoryUrl", ecr_resources["repository"].repository_url)
 pulumi.export("publicSubnetIds", [s.id for s in net["public_subnets"]])
 pulumi.export("privateSubnetIds", [s.id for s in net["private_subnets"]])
-pulumi.export("oidcProviderArn", alb_controller_resources["oidc_provider"].arn)
-pulumi.export("albControllerRoleArn", alb_controller_resources["role"].arn)
+#pulumi.export("oidcProviderArn", alb_controller_resources["oidc_provider"].arn)
+#pulumi.export("albControllerRoleArn", alb_controller_resources["role"].arn)
 
 # To configure kubectl, run:
 # aws eks update-kubeconfig --region <region> --name <cluster-name> --profile <profile>

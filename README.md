@@ -386,7 +386,15 @@ My recommendation is that you start simple, and add in the services as you requi
 
 # Clean Up
 
+Remove all deployments/services/kong/ from our cluster:
+
+```bash
+kubectl delete -f k8s/hello_world -f k8s/gateway_api
+```
+
 To bring down our cluster, we can jsut run 
 ```bash
 pulumi destroy
 ```
+
+NOTE: Deleting kong's dataplane and control plane does not delete NLB it created. You will have to either delete the load balacner service using kubectl or manually delete it on the aws dashboard
