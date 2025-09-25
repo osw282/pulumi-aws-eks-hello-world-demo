@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: hello-world-app
-        image: 043509840788.dkr.ecr.eu-west-2.amazonaws.com/my-eks-cluster-hello-world
+        image: <image-uri> # Replace with your image uri
         imagePullPolicy: Always
         ports:
         - containerPort: 5000

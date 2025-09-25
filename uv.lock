@@ -287,6 +287,7 @@ dependencies = [
     { name = "flask" },
     { name = "pulumi" },
     { name = "pulumi-aws" },
+    { name = "pulumi-command" },
     { name = "pulumi-kubernetes" },
 ]
 
@@ -294,8 +295,23 @@ dependencies = [
 requires-dist = [
     { name = "flask", specifier = ">=3.0.0" },
     { name = "pulumi", specifier = ">=3.197.0" },
-    { name = "pulumi-aws", specifier = ">=7.7.0" },
+    { name = "pulumi-aws", specifier = "~=7.7.0" },
+    { name = "pulumi-command", specifier = ">=1.0.0" },
     { name = "pulumi-kubernetes", specifier = ">=4.0.0" },
+]
+
+[[package]]
+name = "pulumi-command"
+version = "1.1.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "parver" },
+    { name = "pulumi" },
+    { name = "semver" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/47/81/374dd82e3cb6e744d951b8c72580919e6ca85592ec44bfbb7cd45c1ccc43/pulumi_command-1.1.1.tar.gz", hash = "sha256:1e63a0d28b52b56d0e31c15ab5dd0901aa548843d866da5d6b4ad5d06538086c", size = 33045, upload-time = "2025-09-23T23:54:06.502Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/69/e6/d32d105fe7345aa8c2ed52eef8c01de051d434dc163b97c3d1fb6351a261/pulumi_command-1.1.1-py3-none-any.whl", hash = "sha256:6607c2efcc392ddb87466b9d04b9669958c17d9e65f082aea362a072a2de89de", size = 36878, upload-time = "2025-09-23T23:54:04.71Z" },
 ]
 
 [[package]]

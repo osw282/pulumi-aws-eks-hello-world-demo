@@ -14,15 +14,21 @@ spec:
     network:
       services:
         ingress:
+          # For the spec:
+          # https://developer.konghq.com/operator/reference/custom-resources/#dataplaneserviceoptions
           type: LoadBalancer # Default is LoadBalancer anyway, but just to be explicit
           annotations:
-            service.beta.kubernetes.io/aws-load-balancer-type: alb
+            # After researching, kong can have only one of the 2 AWS Load Balancer types, either NLB or CLB but not ALB.
+            # We can still have kong behind a alb, but we will need to provision on ourselves.
+            # And put kong behind it.
+            service.beta.kubernetes.io/aws-load-balancer-type: nlb
             service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
-            service.beta.kubernetes.io/aws-load-balancer-target-type: instance # Instance is alb, ip is nlb
-            service.beta.kubernetes.io/aws-load-balancer-healthcheck-path: /status
-            service.beta.kubernetes.io/aws-load-balancer-healthcheck-port: "8100"
-            service.beta.kubernetes.io/aws-load-balancer-healthcheck-protocol: HTTP
-            service.beta.kubernetes.io/aws-load-balancer-success-codes: "200,404"
+            # If we are just using NLB, we can use ip or instance as the target type.
+            # If you are going to put kong behind a alb, you will need to use ip as the target type.
+            service.beta.kubernetes.io/aws-load-balancer-target-type: ip
+            # So you might ask, how does https work? nlb only passes TCP.
+            # Even if Kong is fronted by an NLB, you can still reach your services over HTTPS in your browser, because
+            # Kong controller will handle the TLS connection itself using the certificate you configure.
   controlPlaneOptions:
     deployment:
       podTemplateSpec:
