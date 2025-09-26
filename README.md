@@ -53,6 +53,8 @@ Set your profile for Pulumi here: [pulumi/Pulumi.dev.yaml](pulumi/Pulumi.dev.yam
 
 
 # Pulumi
+After setting your aws profile for Pulumi.
+
 ```bash
 cd pulumi
 pulumi login
