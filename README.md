@@ -400,7 +400,7 @@ Remove all hello world and Kong resources from the cluster:
 kubectl delete -f k8s/hello_world -f k8s/gateway_api
 ```
 
-To bring down the cluster, run:
+To bring down the cluster, inside the `pulumi` folder, run:
 ```bash
 pulumi destroy
 ```
