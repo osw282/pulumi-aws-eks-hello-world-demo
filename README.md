@@ -338,9 +338,7 @@ We did it.
 
 We have a publicly reachable app.
 
-I hope you find this demo useful. We just deployed a web app that says hello world, which has no use in the real world.
-
-But the set-up and knowledge are transferable to your more complex systems.
+I hope you find this demo useful.
 
 # What's Next
 
