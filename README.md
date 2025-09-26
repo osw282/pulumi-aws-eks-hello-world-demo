@@ -1,36 +1,46 @@
 # pulumi-aws-eks-hello-world-demo
 
-A demo project showing how to provision an Amazon EKS cluster on AWS using Pulumi, with a VPC, subnets, IAM roles, and the AWS Load Balancer Controller. Includes a simple “Hello World” Kubernetes application exposed via Gateway API and Kong Gateway.
+A demo project showing how to provision an Amazon EKS cluster on AWS using Pulumi, with a VPC, subnets, IAM roles, and the AWS Load Balancer Controller. Includes a simple "Hello World" Kubernetes application exposed via Gateway API and Kong Gateway.
 
-This demo aim to give you a step by step hand holding guide that you can follow.
+This demo aims to give you a step-by-step, hand-holding guide you can follow.
 
-What we will have at the end:
-
-
-# pre-requsite
-
-- Pulumi
-- uv
+## What we are going to do
+![system](imgs/system.png)
 
 
-# Project Setup
+# Prerequisites
 
+- [Pulumi](https://www.pulumi.com/)
+- [uv](https://docs.astral.sh/uv/)
+- [Docker](https://www.docker.com/)
+- [kubectl](https://kubernetes.io/docs/reference/kubectl/)
+
+# Getting Started
+
+```bash
 uv sync
 source .venv/bin/activate
+```
 
-# AWS 
+# AWS
 
-Configure you aws
+Configure your AWS credentials.
 
-You can configure any ways you want as long as you know the profile that has a connection.
+You can configure this any way you like as long as you know which profile has access.
 
-Export the profile
+Export the profile:
 
-`export AWS_PROFILE="<YOUR_PROFILE_NAME>"`
+```bash
+export AWS_PROFILE="<YOUR_PROFILE_NAME>"
+```
 
-Run aws sts get-caller-identity --profile <profile name>
+Verify your identity:
 
-You would get something like that:
+```bash
+aws sts get-caller-identity --profile <profile name>
+```
+
+You should see something like:
 ```bash
 {
     "UserId": "BXO3165...ZP36NYY5FOU:my-session",
@@ -39,7 +49,7 @@ You would get something like that:
 }
 ```
 
-Set you profile for pulumi to use here [pulumi/Pulumi.dev.yaml](pulumi/Pulumi.dev.yaml)
+Set your profile for Pulumi here: [pulumi/Pulumi.dev.yaml](pulumi/Pulumi.dev.yaml)
 
 
 # Pulumi
@@ -50,174 +60,176 @@ pulumi stack init dev
 pulumi up
 ```
 
-You should be able to see the progress in your cli.
+You should see progress in your CLI.
 
-or you can view the online dashboard which I found to be really good compared to some of the other iac tools.
+You can also view the online dashboard. It is quite good compared to some other IaC tools. You can track stack updates and see a graph showing relationships between resources.
 
-You can track all the updates to your stacks and a graph view that shows you the relationship between resources.
+Standing up the infra takes around 10-15 minutes.
 
-Standing the infra takes around 10-15 minutes.
+Once finished, you should see an AWS cluster named `my-eks-cluster-*` in the AWS console.
 
-Once finished, you shuld see a an aws cluster named `my-eks-cluster-*` if you visit the aws dashboard.
-
-You might need to manually confgirue the kubeconfig for access to your cluster, to do so, run:
+You might need to manually configure your kubeconfig to access the cluster. Run:
 ```bash
 aws eks update-kubeconfig --region <region> --name <cluster-name> --profile <profile>
 ```
 
-To quickly check you have access to the cluster locally, run
+To quickly check you have access locally, run:
 
-`kubectl get pod` and you should expect the `No resources found in default namespace.` message since we have not deployed anything yet.
+```bash
+kubectl get pod
+```
 
-# Deploying Our Hellow World APp
+You should see `No resources found in default namespace.` since we have not deployed anything yet.
 
-I have made a very simple hello world app which you can find inside the [src](src) folder. It's a single page web app that just says hello world run by a flask server.
+# Deploying Our Hello World App
 
-Nothing special there, feel free to poke around though.
+I have made a very simple hello world app in the [src](src) folder. It is a single page web app that just says hello world, served by a Flask server.
 
-You can try running it locally if you want.
+Nothing special there. Feel free to poke around.
 
-On the project root, run:
+You can try running it locally.
 
-`python src/app.py`
+From the project root, run:
 
-You should see
+```bash
+python src/app.py
+```
+
+You should see:
 
 ![run_app_local.png](imgs/run_app_local.png)
 
-Try to reach it on your browser: [http://localhost:5000/ui](http://localhost:5000/ui)
+Now try in your browser: [http://localhost:5000/ui](http://localhost:5000/ui)
 
-This is what you should see
+You should see:
 
 ![ui_local](imgs/ui_local.png)
 
-Cool, let's build a docker image and push it to our ecr.
+Cool, let's build a Docker image and push it to ECR.
 
 ## Building And Pushing To ECR
 
-There should be a ecr named `my-eks-cluster-hello-world` provisioned which you can view on the aws dashboard.
+There should be an ECR repository named `my-eks-cluster-hello-world`. You can find it in the AWS console.
 
 ![ecr](imgs/ecr.png)
 
-There is a [Dockerfile](Dockerfile) which you can use to build the hello world app image.
+There is a [Dockerfile](Dockerfile) you can use to build the app image.
 
-To do it, we will need to autheticate docker to our ecr.
+First, authenticate Docker to your ECR.
 
-Inside the pulumi folder,
-
-Run on your terminal, put in your region and profile name:
+Inside the `pulumi` folder, run (set your region and profile):
 ```bash
 aws ecr get-login-password --region <your-region> --profile <your-profile-name> | docker login --username AWS --password-stdin $(pulumi stack output ecrRepositoryUrl | cut -d'/' -f1)
 ```
-You should see message saying `Login Succeeded` after.
+You should see `Login Succeeded`.
 
-Next, build and push the image to our ecr.
+Next, build and push the image to ECR.
 
-To do that run:
+Still inside the `pulumi` folder, run:
 
 ```bash
 docker buildx build --platform linux/amd64 -t $(pulumi stack output ecrRepositoryUrl) .. --push
 ```
 
-You should see our image with the latest tag on the ecr after.
+You should see the image with the `latest` tag in ECR afterwards.
 
-## Deploy The App On OUr Cluster
+## Deploy The App On Our Cluster
 
-If you look into our [k8s/hello_world](k8s/hello_world/), you should find 3 files there, [deployment.yaml](k8s/hello_world/deployment.yaml), [service.yaml](k8s/hello_world/service.yaml) and [http_route.yaml](k8s/hello_world/http_route.yaml). Ignore the [http_route.yaml](k8s/hello_world/http_route.yaml) for now. 
+In [k8s/hello_world](k8s/hello_world/) you will find three files: [deployment.yaml](k8s/hello_world/deployment.yaml), [service.yaml](k8s/hello_world/service.yaml), and [http_route.yaml](k8s/hello_world/http_route.yaml). Ignore `http_route.yaml` for now.
 
-Within our [deployment.yaml](k8s/hello_world/deployment.yaml), we have our pod definition and we need to put our image uri which you can find and copy one the aws dashboard.
+In [deployment.yaml](k8s/hello_world/deployment.yaml) we define the Pod. Set the image URI to the one from ECR.
 
 ![images_uri](imgs/images_uri.png)
 
-Copy and paste the uri on [line 17](k8s/hello_world/deployment.yaml#17) in our [deployment.yaml](k8s/hello_world/deployment.yaml).
+Copy and paste the URI into [line 17](k8s/hello_world/deployment.yaml#17) in `deployment.yaml`.
 
-[service.yaml](k8s/hello_world/service.yaml) defines the internal service (cluster ip) to our deployment which is our hello world app.
+`service.yaml` defines the internal service (ClusterIP) for the hello world deployment.
 
-When you are ready to deploy, on the project root run:
+When you are ready to deploy, from the project root run:
 
 ```bash
 kubectl apply -f k8s/hello_world/deployment.yaml -f k8s/hello_world/service.yaml
 ```
 
-To view our deployment and service, just run:
+To view the deployment and service, run:
 
 ```bash
 kubectl get pods
 ```
 
-And we should see two replicas of our deployments.
+You should see two replicas of the deployment.
 
 ![get_pod](imgs/get_pod.png)
 
-We can do the same for the service, run:
+Do the same for the service:
 
 ```bash
 kubectl get svc
 ```
 
-And we should see a internal service of type cluster ip for our hellow world app deployment.
+You should see an internal service of type ClusterIP for the hello world deployment.
 
 ![get_svc](imgs/get_svc.png)
 
-Let's do port-forward to see if the app is running like we are expecting it. If you have taken a look at [pulumi/infra/eks.py](pulumi/infra/eks.py#52), you should see `endpoint_public_access` is set to True so we can use kubectl to port-forward it, if it's false, then we won't be able to do it without first having a way to be inside our vpc first.
+Let's port-forward to quickly verify the app. If you look at [pulumi/infra/eks.py](pulumi/infra/eks.py#52), `endpoint_public_access` is set to `True`, so we can use `kubectl port-forward`. If it is `False`, you would need a way to be inside the VPC first.
 
-Since we have enable `endpoint_public_access`, let's port-forward it:
+Since we enabled `endpoint_public_access`, port-forward:
 ```bash
 kubectl port-forward svc/hello-world-app-service 5000:5000
 ```
 
 ![port-forward](imgs/port_forward.png)
 
-We should be able to reach it on [http://localhost:5000/ui](http://localhost:5000/ui) and see the same ui as we saw when we ran the flask app locally on our machine earlier.
+You should be able to reach [http://localhost:5000/ui](http://localhost:5000/ui) and see the same UI as earlier.
 
-Cool, everything working as expected so far, we can stop the port-forward.
+Cool, everything is working as expected. You can stop the port-forward.
 
-What if we need to expose it to be reachable via the internet using http/htttps?
+What if we want to expose it to the internet over HTTP or HTTPS?
 
 # Exposing Our Service To The Internet
 
-There are a ton of different ways you can do this, for example, using k8s ingress or gateway api.
+There are many ways to do this, for example using Kubernetes Ingress or Gateway API.
 
-We will go with gateway api in this demo which is a newer Kubernetes API for traffic routing, intended as a more expressive and extensible successor to Ingress.
+We will go with Gateway API in this demo. Gateway API is a newer Kubernetes API for traffic routing. It is more expressive and extensible than Ingress.
 
-At the time of this demo wwas created, [k8s Ingress](https://kubernetes.io/docs/concepts/services-networking/ingress/) was at v1.19 and it's frozen.
+At the time this demo was created, [Kubernetes Ingress](https://kubernetes.io/docs/concepts/services-networking/ingress/) was at v1.19 and frozen.
 
-You will want to learn more about [k8s Gateway API](https://kubernetes.io/docs/concepts/services-networking/gateway/) soon or later.
+You will want to learn more about [Kubernetes Gateway API](https://kubernetes.io/docs/concepts/services-networking/gateway/) sooner or later.
 
-I won't spend too much time explaining what gateway api is and the different components we need to make it work, if you are intereted in it, you can check out my [k8s-gateway-api-demo](https://github.com/osw282/k8s-gateway-api-demo).
+I will not spend too much time explaining Gateway API and all the components here. If you are interested, check out my [k8s-gateway-api-demo](https://github.com/osw282/k8s-gateway-api-demo).
 
-We will be using the [kong gateway operator](https://developer.konghq.com/operator/dataplanes/get-started/kic/install/) as the GatewayClass implemenation.
+We will use the [Kong Gateway Operator](https://developer.konghq.com/operator/dataplanes/get-started/kic/install/) as the GatewayClass implementation.
 
 ## Deploying Gateway API
 
-Inside the [k8s/gateway_api/](k8s/gateway_api/) folder, you will find 5 diffeernt manifests there.
+Inside [k8s/gateway_api/](k8s/gateway_api/) you will find these manifests.
 
-Gateway API requiest a minimum of 3 resources to work
-- [GatewayClass](k8s/gateway_api/gateway_class.yaml) # Inside [k8s/gateway_api/](k8s/gateway_api/)
-- [Gateway](k8s/gateway_api/gateway.yaml) # Inside [k8s/gateway_api/](k8s/gateway_api/)
-- [HTTPRoute](k8s/hello_world/http_route.yaml) or a `GRPCRoute` # Inside [k8s/hello_world/](k8s/hello_world/)
+Gateway API requires a minimum of three resources:
+- [GatewayClass](k8s/gateway_api/gateway_class.yaml)
+- [Gateway](k8s/gateway_api/gateway.yaml)
+- [HTTPRoute](k8s/hello_world/http_route.yaml) or a `GRPCRoute`
 
-We also have 3 additional manifest that will help us to set up our gateway api:
+We also have three additional manifests that will help us set up Gateway API:
 - [k8s/gateway_api/namespace.yaml](k8s/gateway_api/namespace.yaml)
 - [k8s/gateway_api/gateway_config.yaml](k8s/gateway_api/gateway_config.yaml)
 - [k8s/gateway_api/reference_grant.yaml](k8s/gateway_api/reference_grant.yaml)
 
-Again, I won't go through what each one of them do here, I have explained the purposed of each and why there are here on my [k8s-gateway-api-demo](https://github.com/osw282/k8s-gateway-api-demo) repo.
+I have explained what each of these does and why they are here in my [k8s-gateway-api-demo](https://github.com/osw282/k8s-gateway-api-demo) repo.
 
-Let's go ahead and apply them, on the project root:
+Let's apply them from the project root.
 
 ### 1. Install Kong Gateway Operator with Ingress Controller
 
-I recommend you to visit kong's getting started page and follow their insturctions to install it.
+I recommend visiting Kong's getting started page and following their instructions:
 
 [Install Kong Gateway Operator with Kong Ingress Controller](https://developer.konghq.com/operator/dataplanes/get-started/kic/install/)
 
-If you can't be bothered, just copy the below blocks, which should install the latest version at the time of this blog is written 25-Sep-2025 of Kong Gaeway Operator:
+If you prefer, copy the commands below. They install the latest version as of 25-Sep-2025 of Kong Gateway Operator:
 ```bash
-# Install the gateway crds
+# Install Gateway API CRDs
 kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.3.0/standard-install.yaml
 
-# Install Kong Gateway Operator using helm charts
+# Install Kong Gateway Operator using Helm
 helm repo add kong https://charts.konghq.com
 helm repo update
 
@@ -226,49 +238,49 @@ helm upgrade --install kgo kong/gateway-operator -n kong-system --create-namespa
   --set kubernetes-configuration-crds.enabled=true \
   --set env.ENABLE_CONTROLLER_KONNECT=true
 
-# Wait for kong gateway operator to be ready
+# Wait for Kong Gateway Operator to be ready
 kubectl -n kong-system wait --for=condition=Available=true --timeout=120s deployment/kgo-gateway-operator-controller-manager
 ```
 
-If you run:
+Check status:
 ```bash
 kubectl get pods -n kong-system
 ```
 
-You should see
+You should see:
 ![kong_operator.png](imgs/kong_operator.png)
 
-### 2. Creating a name space for kong
+### 2. Create a namespace for Kong
 
 ```bash
 kubectl apply -f k8s/gateway_api/namespace.yaml
 ```
 
-### 3. Creating a configuration for kong's data plane and control plane
+### 3. Create configuration for Kong's data plane and control plane
 
 ```bash
 kubectl apply -f k8s/gateway_api/gateway_config.yaml
 ```
 
-### 4. Createing the kong gateway class
+### 4. Create the Kong GatewayClass
 
 ```bash
 kubectl apply -f k8s/gateway_api/gateway_class.yaml
 ```
 
-### 5. Createing the gateway
+### 5. Create the Gateway
 
 ```bash
 kubectl apply -f k8s/gateway_api/gateway.yaml
 ```
 
-### 6. Creating a reference grant
+### 6. Create a ReferenceGrant
 
 ```bash
 kubectl apply -f k8s/gateway_api/reference_grant.yaml
 ```
 
-To check if kong's data and control plane is running, wait for them to be ready:
+To check if Kong's data and control planes are running, wait for them to be ready:
 
 ```bash
 kubectl get pods -n kong
@@ -276,7 +288,7 @@ kubectl get pods -n kong
 
 ![kong_planes](imgs/kong_planes.png)
 
-By now, we should already have an external ip address that we can reach, we can verify by running
+By now we should have an external IP address. Verify by running:
 
 ```bash
 kubectl get svc -n kong
@@ -284,21 +296,19 @@ kubectl get svc -n kong
 
 ![kong_svc](imgs/kong_svc.png)
 
-We can see there is a external ip associated with our kong load balancer service.
+You should see an external IP associated with Kong's LoadBalancer service.
 
-We can also visit the load balancer page on the aws dashboard.
+Also visit the Load Balancer page in the AWS console.
 
 ![load_balancer](imgs/load_balacner.png)
 
-Wait for it to provision and you should see the state to become "Active".
+Wait for it to provision. The state should become "Active".
 
-Now, we should be able to reach our app with the external ip.
+Now we should be able to reach the app via the external IP.
 
-## Create a HTTP route for our hello world app
+## Create an HTTPRoute for the hello world app
 
-Now that we have kong all setup with gateway api.
-
-We can define a route for our hello world deplpyment
+Now that Kong is set up with Gateway API, define a route for the hello world deployment.
 
 From the project root, run:
 
@@ -306,52 +316,50 @@ From the project root, run:
 kubectl apply -f k8s/hello_world/http_route.yaml
 ```
 
-To check that it has successfull created
+To check that it was created successfully:
 
 ```bash
 kubectl get httproute -n kong
 ```
 
-We should see
+You should see:
 
 ![http_route](imgs/http_route.png)
 
-Run the following command to give you the full url to reach our hello world app.
+Print the full URL to reach the app:
 
 ```bash
 echo "http://$(kubectl get svc -n kong -o jsonpath='{.items[?(@.spec.type=="LoadBalancer")].status.loadBalancer.ingress[0].hostname}')/ui"
 ```
 
-We did it..
+We did it.
 
 ![success](imgs/great_success.png)
 
 We have a publicly reachable app.
 
-I really hope you find this demo useful, of course we just deployed a webapp that just says hello world which have no use in the real world.
+I hope you find this demo useful. We just deployed a web app that says hello world, which has no use in the real world.
 
-But the knowledge and set up is transferable to set up your complex machine learning system.
+But the set-up and knowledge are transferable to your more complex systems.
 
 # What's Next
 
 ## HTTPS
 
-There are two ways we can set up https with kong.
+There are two ways to set up HTTPS with Kong.
 
-If you remeber, inside our [k8s/gateway_api/gateway_config.yaml](k8s/gateway_api/gateway_config.yaml), kong can only have either a NLB or a CLB, CLB is outdated and should not be used anymore, so we went with a internet facing NLB.
+If you remember, in [k8s/gateway_api/gateway_config.yaml](k8s/gateway_api/gateway_config.yaml), Kong can use either an NLB or a CLB. CLB is outdated and should not be used any more, so we went with an internet-facing NLB.
 
-But NLB is layer 4, support tcp but not http or https. So what do we do?
+But NLB is layer 4. It supports TCP but not HTTP or HTTPS. So what do we do?
 
-### Let kong do the work, we keep NLB at the front
+### Let Kong do the work and keep the NLB in front
 
-Well you are right, but even if Kong is fronted by an NLB, you can still reach your services over HTTPS because:
-- the NLB is just **passing raw TCP** (port 443) to Kong.
+Even if Kong is fronted by an NLB, you can still reach your services over HTTPS because:
+- The NLB is just passing raw TCP (port 443) to Kong.
+- Kong terminates the TLS connection using the certificate you configure.
+- From the browser’s perspective, it is still a normal HTTPS endpoint.
 
-- Kong terminates the TLS connection itself using the certificate you configure.
-
-- From the browser’s perspective, it’s still a normal HTTPS endpoint (valid cert etc).
-
-So the flow will look like this:
+The flow looks like this:
 
 ```bash
 Browser (HTTPS request on port 443)
@@ -365,36 +373,49 @@ Backend Service
 
 As long as Kong is configured with a valid cert (self-signed, Let’s Encrypt via cert-manager, or one you upload), your browser will connect via HTTPS with no issue.
 
-Which ever way you should to get a tls certificate is really your choice, but you will need a domain.
+Whichever way you choose to get a TLS certificate is up to you, but you will need a domain.
 
-### We put a ALB in front of kong
+### Put an ALB in front of Kong
 
-If you put an ALB in front, then the ALB could terminate TLS itself (certs live in ACM) and Kong would just see plain HTTP.
+If you put an ALB in front, the ALB can terminate TLS (certs live in ACM) and Kong will see plain HTTP.
 
-That means Kong doesn’t need to expose a public-facing LoadBalancer at all.
+That means Kong does not need to expose a public-facing LoadBalancer.
 
 With ALB:
 
-- The ALB is becomes the external entrypoint.
+- The ALB becomes the external entrypoint.
 - ALB terminates TLS and forwards plain HTTP to Kong.
 - Kong only needs to be reachable inside the cluster, so ClusterIP is enough.
-- Which you can set via annotation in [k8s/gateway_api/gateway_config.yaml](k8s/gateway_api/gateway_config.yaml)
+- You can set this via annotation in [k8s/gateway_api/gateway_config.yaml](k8s/gateway_api/gateway_config.yaml)
 
-This is also a pretty common design in setups where teams want AWS-native TLS + WAF at the edge, while still keeping Kong as the API gateway inside.
+This is a common design where teams want AWS-native TLS and WAF at the edge while keeping Kong as the API gateway inside.
 
-My recommendation is that you start simple, and add in the services as you required.
+My recommendation is to start simple and add services as required.
 
 # Clean Up
 
-Remove all deployments/services/kong/ from our cluster:
+Remove all hello world and Kong resources from the cluster:
 
 ```bash
 kubectl delete -f k8s/hello_world -f k8s/gateway_api
 ```
 
-To bring down our cluster, we can jsut run 
+NOTE: Deleting Kong's data plane and control plane does not delete the NLB it created. You will have to either delete the LoadBalancer Service using kubectl or manually delete it in the AWS console.
+
+If you do not, `pulumi destroy` will fail because the NLB creates ENIs in the public subnet and the subnet cannot be deleted with an ENI attached.
+
+```bash
+kubectl delete svc -n kong -l konghq.com/service
+```
+
+To bring down the cluster, run:
 ```bash
 pulumi destroy
 ```
 
-NOTE: Deleting kong's dataplane and control plane does not delete NLB it created. You will have to either delete the load balacner service using kubectl or manually delete it on the aws dashboard
+Final note: for production, I would lean toward managing an ALB or NLB yourself in Pulumi. That way:
+- Pulumi manages lifecycle.
+- No orphaned AWS resources.
+- You still point Kong’s proxy Service at your managed ALB.
+
+If you are going to use HTTPS and WAF, you should go with an ALB.
