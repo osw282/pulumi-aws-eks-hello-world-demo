@@ -400,14 +400,6 @@ Remove all hello world and Kong resources from the cluster:
 kubectl delete -f k8s/hello_world -f k8s/gateway_api
 ```
 
-NOTE: Deleting Kong's data plane and control plane does not delete the NLB it created. You will have to either delete the LoadBalancer Service using kubectl or manually delete it in the AWS console.
-
-If you do not, `pulumi destroy` will fail because the NLB creates ENIs in the public subnet and the subnet cannot be deleted with an ENI attached.
-
-```bash
-kubectl delete svc -n kong -l konghq.com/service
-```
-
 To bring down the cluster, run:
 ```bash
 pulumi destroy
